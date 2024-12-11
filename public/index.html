@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Chat</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .chat-box {
+            width: 50%;
+            margin: 0 auto;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            overflow-y: scroll;
+            height: 300px;
+        }
+        .input-box {
+            width: 50%;
+            margin: 0 auto;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Real-Time Chat</h1>
+    <div class="chat-box" id="chatBox"></div>
+    <div class="input-box">
+        <input type="text" id="messageInput" placeholder="Enter your message" />
+        <button id="sendBtn">Send</button>
+    </div>
+
+    <script>
+     const socket = io();
+
+// Ask for username
+const sender = prompt("Enter your username");
+
+// Join a default room
+const room = "testRoom";
+socket.emit("joinRoom", { room });
+
+// Display received messages
+const chatBox = document.getElementById('chatBox');
+socket.on('message', (message) => {
+    const messageElement = document.createElement('div');
+    messageElement.textContent = `${message.sender}: ${message.text}`;
+    chatBox.appendChild(messageElement);
+});
+
+// Send messages
+const sendBtn = document.getElementById('sendBtn');
+const messageInput = document.getElementById('messageInput');
+sendBtn.addEventListener('click', () => {
+    const message = messageInput.value;
+    if (message.trim()) {
+        socket.emit('chatMessage', {
+            room,
+            sender, 
+            text: message,
+        });
+        messageInput.value = '';
+    }
+});
+
+    </script>
+</body>
+</html>

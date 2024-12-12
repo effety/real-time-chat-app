@@ -23,6 +23,11 @@
             margin: 0 auto;
             padding: 10px;
         }
+        .file-preview {
+            max-width: 100px;
+            max-height: 100px;
+            object-fit: cover;
+        }
     </style>
 </head>
 <body>
@@ -30,42 +35,89 @@
     <div class="chat-box" id="chatBox"></div>
     <div class="input-box">
         <input type="text" id="messageInput" placeholder="Enter your message" />
+        <input type="file" id="fileInput" />
         <button id="sendBtn">Send</button>
     </div>
 
     <script>
-     const socket = io();
-
-// Ask for username
-const sender = prompt("Enter your username");
-
-// Join a default room
-const room = "testRoom";
-socket.emit("joinRoom", { room });
-
-// Display received messages
-const chatBox = document.getElementById('chatBox');
-socket.on('message', (message) => {
-    const messageElement = document.createElement('div');
-    messageElement.textContent = `${message.sender}: ${message.text}`;
-    chatBox.appendChild(messageElement);
-});
-
-// Send messages
-const sendBtn = document.getElementById('sendBtn');
-const messageInput = document.getElementById('messageInput');
-sendBtn.addEventListener('click', () => {
-    const message = messageInput.value;
-    if (message.trim()) {
-        socket.emit('chatMessage', {
-            room,
-            sender, 
-            text: message,
+        const socket = io();
+    
+        // Ask for username
+        const sender = prompt("Enter your username");
+    
+        // Join a default room
+        const room = "testRoom";
+        socket.emit("joinRoom", { room });
+    
+        // Display received messages
+        const chatBox = document.getElementById('chatBox');
+        socket.on('message', (message) => {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = `${message.sender}: ${message.text}`;
+            
+            if (message.file) {
+                const fileElement = document.createElement('img');
+                fileElement.src = message.file;  // Display image using the file path
+                fileElement.classList.add('file-preview');
+                messageElement.appendChild(fileElement);
+            }
+            chatBox.appendChild(messageElement);
         });
-        messageInput.value = '';
-    }
-});
-
+    
+        // Send messages and handle file uploads
+        const sendBtn = document.getElementById('sendBtn');
+        const messageInput = document.getElementById('messageInput');
+        const fileInput = document.getElementById('fileInput');
+    
+        sendBtn.addEventListener('click', () => {
+            const message = messageInput.value.trim();
+            const file = fileInput.files[0];
+    
+            if (message || file) {
+                const formData = new FormData();
+                formData.append('room', room);  // Include the room in the form data
+                formData.append('sender', sender);  // Include the sender in the form data
+    
+                // If there's a file, append it to the formData
+                if (file) {
+                    formData.append('file', file);
+                }
+    
+                // Handle file upload if any
+                if (file) {
+                    fetch('/upload', {
+                        method: 'POST',
+                        body: formData,
+                    })
+                    .then((response) => response.json())
+                    .then((data) => {
+                        const filePath = data.filePath;
+    
+                        // Emit chatMessage with or without text and file
+                        socket.emit('chatMessage', {
+                            room,
+                            sender,
+                            text: message, // Send the message text
+                            file: filePath,  // Send file path along with the message
+                        });
+                        fileInput.value = ''; // Clear file input after sending
+                    })
+                    .catch((err) => console.error('File upload error:', err));
+                } else {
+                    // Emit chat message without a file
+                    socket.emit('chatMessage', {
+                        room,
+                        sender,
+                        text: message, // Send only the message text
+                    });
+                }
+    
+                messageInput.value = ''; // Clear message input after sending
+            } else {
+                console.log('Message or file is required to send');
+            }
+        });
     </script>
+    
 </body>
 </html>
